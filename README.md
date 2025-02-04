@@ -1,6 +1,6 @@
 # pizza_app
 
-A new Flutter project.
+A new Flutter project.Dart programming language is widely used in  mobile app development (especially with Flutter), server-side development, Internet of Things (IoT), and for building command-line tools and utilities.
 
 ## Getting Started
 
