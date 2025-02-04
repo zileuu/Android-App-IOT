@@ -1,0 +1,192 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../screen/auth/auth_screen.dart';
+import '../screen/sale_app/pizza-home-screen.dart';
+
+class AuthController extends GetxController {
+  static AuthController instance = Get.find();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  var isLoading = false.obs;
+
+  Future<void> signUp(String email, String password, String firstName, String lastName) async {
+    try {
+      isLoading.value = true;
+
+      // ✅ Create user in Firebase Authentication
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+          email: email,
+          password: password
+      );
+
+      // ✅ Combine first and last name into a single "userName" field
+      String userName = "$firstName $lastName";
+
+      // ✅ Firestore-এ userName সংরক্ষণ করুন
+      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        "userID": userCredential.user!.uid,
+        "userName": userName,
+        "email": email,
+        "createdAt": Timestamp.now(),
+      });
+      // // ✅ Store user details in Firestore
+      // await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+      //   "userName": userName, // ✅ Store full name as userName
+      //   "email": email,
+      //   "createdAt": Timestamp.now(),
+      // });
+
+      Get.offAll(() => PizzaHomeScreen()); // ✅ Navigate to home after signup
+    } catch (e) {
+      Get.snackbar("Error", e.toString(), snackPosition: SnackPosition.TOP);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+
+  Future<void> signIn(String email, String password) async {
+    if (email.isEmpty || password.isEmpty) {
+      Get.snackbar("Error", "Email and password cannot be empty!",
+          snackPosition: SnackPosition.TOP, backgroundColor: Colors.red);
+      return;
+    }
+
+    try {
+      isLoading.value = true;
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      Get.offAll(() => PizzaHomeScreen());
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = "Login failed";
+      if (e.code == 'user-not-found') {
+        errorMessage = "No user found with this email.";
+      } else if (e.code == 'wrong-password') {
+        errorMessage = "Incorrect password. Try again.";
+      } else if (e.code == 'invalid-email') {
+        errorMessage = "Invalid email format.";
+      } else {
+        errorMessage = e.message ?? "Something went wrong.";
+      }
+
+      Get.snackbar("Error", errorMessage,
+          snackPosition: SnackPosition.TOP, backgroundColor: Colors.red);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+  Future<void> signInWithGoogle() async {
+    try {
+      isLoading.value = true;
+      await _googleSignIn.signOut();
+
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        isLoading.value = false;
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential =
+      await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (!userDoc.exists) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+            "userID": user.uid,
+            "userName": user.displayName ?? "No Name",
+            "email": user.email,
+            "photoURL": user.photoURL ?? "",
+            "createdAt": Timestamp.now(),
+          });
+        }
+      }
+
+      Get.offAll(() => PizzaHomeScreen());
+    } catch (e) {
+      Get.snackbar(
+        "Error",
+        "Google Sign-In Failed: $e",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  //
+  // Future<void> signInWithGoogle() async {
+  //   try {
+  //     isLoading.value = true;
+  //
+  //     // Ensure fresh sign-in
+  //     await _googleSignIn.signOut();
+  //
+  //     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+  //     if (googleUser == null) {
+  //       isLoading.value = false;
+  //       return;
+  //     }
+  //
+  //     final GoogleSignInAuthentication googleAuth =
+  //         await googleUser.authentication;
+  //     final credential = GoogleAuthProvider.credential(
+  //       accessToken: googleAuth.accessToken,
+  //       idToken: googleAuth.idToken,
+  //     );
+  //
+  //     final UserCredential userCredential =
+  //         await _auth.signInWithCredential(credential);
+  //     final User? user = userCredential.user;
+  //
+  //     if (user != null) {
+  //       // ✅ Check if the email is already registered with another provider
+  //       final signInMethods =
+  //           await _auth.fetchSignInMethodsForEmail(user.email!);
+  //
+  //       if (signInMethods.contains("password")) {
+  //         // ✅ If the user has an email/password account, link Google to it
+  //         try {
+  //           final emailPasswordCredential = EmailAuthProvider.credential(
+  //             email: user.email!,
+  //             password:
+  //                 "your_user_password_here", // ⚠️ User must provide their password
+  //           );
+  //           await user.linkWithCredential(emailPasswordCredential);
+  //         } catch (e) {
+  //           print("Account linking failed: $e");
+  //         }
+  //       }
+  //     }
+  //
+  //     Get.offAll(() => PizzaHomeScreen());
+  //   } catch (e) {
+  //     Get.snackbar(
+  //       "Error",
+  //       "Google Sign-In Failed: $e",
+  //       snackPosition: SnackPosition.TOP,
+  //       backgroundColor: Colors.red,
+  //     );
+  //   } finally {
+  //     isLoading.value = false;
+  //   }
+  // }
+}
