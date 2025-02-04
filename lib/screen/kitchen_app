@@ -1,0 +1,269 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
+
+class KitchenHomeScreen extends StatelessWidget {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  KitchenHomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade200,
+      appBar: AppBar(
+        title:
+            const Text("Kitchen Orders", style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        backgroundColor: Colors.red,
+        automaticallyImplyLeading: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _firestore
+            .collection('orders')
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+                child: Text("No orders yet.",
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)));
+          }
+
+          var orders = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: orders.length,
+            itemBuilder: (context, index) {
+              var order = orders[index].data() as Map<String, dynamic>;
+
+              String orderStatus =
+                  order['status'] ?? 'Pending'; // ✅ Fix null issue
+
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                elevation: 4,
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      /// 🔥 **Order Header**
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Order ID: ${order['orderID']}",
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red),
+                          ),
+                          Chip(
+                            label: Text(
+                              orderStatus, // ✅ Safe status value
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            backgroundColor: _getStatusColor(orderStatus),
+                          ),
+                        ],
+                      ),
+
+                      Text(
+                        "Total: ${order['totalPrice'].toStringAsFixed(2)} \$",
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.red),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Date: ${order['date']}",
+                        style:
+                            const TextStyle(fontSize: 14, color: Colors.black),
+                      ),
+                      const SizedBox(height: 8),
+
+                      /// 🔥 **Items**
+                      const Text("Items:",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 18)),
+                      if (order['cartItems'] != null &&
+                          order['cartItems'] is Map)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var item in order['cartItems'].values)
+                              Text(
+                                "${item['name']} x${item['quantity']}",
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red),
+                              ),
+                          ],
+                        ),
+
+                      const SizedBox(height: 8),
+
+                      /// ✅ **Combined Extras & Beverages**
+                      if (order['cartItems'] != null &&
+                          order['cartItems'] is Map)
+                        _buildExtrasAndBeverages(order['cartItems']),
+
+                      const SizedBox(height: 8),
+
+                      /// ✅ **Order Status Dropdown**
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            "Update Status:",
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          _buildStatusDropdown(order['orderID'], orderStatus),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  /// ✅ **Combine & Count Extras & Beverages**
+  Widget _buildExtrasAndBeverages(Map<String, dynamic> cartItems) {
+    Map<String, int> extrasCount = {};
+    Map<String, int> beveragesCount = {};
+
+    for (var item in cartItems.values) {
+      if (item['extras'] != null && item['extras'] is Map) {
+        for (var extra in item['extras'].values) {
+          extrasCount[extra['name']] = (extrasCount[extra['name']] ?? 0) +
+              (extra['quantity'] as num).toInt();
+        }
+      }
+      if (item['beverages'] != null && item['beverages'] is Map) {
+        for (var beverage in item['beverages'].values) {
+          beveragesCount[beverage['name']] =
+              (beveragesCount[beverage['name']] ?? 0) +
+                  (beverage['quantity'] as num).toInt();
+        }
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (extrasCount.isNotEmpty) ...[
+          const Text("Extra Material:",
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  fontSize: 16)),
+          for (var entry in extrasCount.entries)
+            Text(
+              "${entry.key} x${entry.value}",
+              style: const TextStyle(color: Colors.red),
+            ),
+        ],
+        if (beveragesCount.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          const Text("Beverages:",
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  fontSize: 16)),
+          for (var entry in beveragesCount.entries)
+            Text(
+              "${entry.key} x${entry.value}",
+              style: const TextStyle(color: Colors.red),
+            ),
+        ],
+      ],
+    );
+  }
+
+  /// ✅ **Status Dropdown**
+  Widget _buildStatusDropdown(String orderID, String currentStatus) {
+    List<String> statusOptions = [
+      "Pending",
+      "Accepted",
+      "Ongoing",
+      "Ready to Pick",
+      "Delivered"
+    ];
+
+    return DropdownButton<String>(
+      value: currentStatus,
+      // ✅ Safe value
+      icon: const Icon(Icons.arrow_drop_down, color: Colors.red),
+      style: const TextStyle(color: Colors.black, fontSize: 16),
+      underline: Container(height: 2, color: Colors.red),
+      onChanged: (String? newStatus) {
+        if (newStatus != null) {
+          _updateOrderStatus(orderID, newStatus);
+        }
+      },
+      items: statusOptions.map<DropdownMenuItem<String>>((String status) {
+        return DropdownMenuItem<String>(
+          value: status,
+          child: Text(status, style: TextStyle(color: _getStatusColor(status))),
+        );
+      }).toList(),
+    );
+  }
+
+  /// ✅ **Update Order Status in Firebase**
+  void _updateOrderStatus(String orderID, String newStatus) {
+    _firestore
+        .collection('orders')
+        .doc(orderID)
+        .update({'status': newStatus}).then((_) {
+      Get.snackbar(
+        "Success",
+        "Order status updated to $newStatus",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+    }).catchError((error) {
+      Get.snackbar(
+        "Error",
+        "Failed to update status",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    });
+  }
+
+  /// ✅ **Get Color for Status**
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case "Accepted":
+        return Colors.orange;
+      case "Ongoing":
+        return Colors.blue;
+      case "Ready to Pick":
+        return Colors.green;
+      case "Delivered":
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+}
