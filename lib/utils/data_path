@@ -1,0 +1,26 @@
+final List<Map<String, dynamic>> popularPizzas = [
+  {'name': 'Pepperoni', 'price': 20.00, 'image': 'assets/images/a.png'},
+  {'name': 'Aussie', 'price': 19.99, 'image': 'assets/images/a.png'},
+  {'name': 'Margherita', 'price': 18.99, 'image': 'assets/images/c.png'},
+  {'name': 'Benedict', 'price': 15.99, 'image': 'assets/images/a.png'},
+  {'name': 'Pepperoni', 'price': 20.00, 'image': 'assets/images/a.png'},
+  {'name': 'Aussie', 'price': 19.99, 'image': 'assets/images/a.png'},
+  {'name': 'Margherita', 'price': 18.99, 'image': 'assets/images/c.png'},
+  {'name': 'Benedict', 'price': 15.99, 'image': 'assets/images/a.png'},
+];
+
+final List<Map<String, dynamic>> specialtyPizzas = [
+  {'name': 'Truffle', 'price': 22.99, 'image': 'assets/images/a.png'},
+  {'name': 'BBQ Chicken', 'price': 20.99, 'image': 'assets/images/d.png'},
+  {'name': 'Hawaiian', 'price': 19.99, 'image': 'assets/images/a.png'},
+  {'name': 'Seafood', 'price': 24.99, 'image': 'assets/images/b.png'},
+  {'name': 'Hawaiian', 'price': 19.99, 'image': 'assets/images/a.png'},
+  {'name': 'Seafood', 'price': 24.99, 'image': 'assets/images/b.png'},
+];
+
+final List<Map<String, dynamic>> vegetarianPizzas = [
+  {'name': 'Veggie Deluxe', 'price': 17.99, 'image': 'assets/images/a.png'},
+  {'name': 'Mushroom', 'price': 16.99, 'image': 'assets/images/a.png'},
+  {'name': 'Spinach & Feta', 'price': 18.49, 'image': 'assets/images/d.png'},
+  {'name': 'Cheese Lovers', 'price': 15.99, 'image': 'assets/images/a.png'},
+];
