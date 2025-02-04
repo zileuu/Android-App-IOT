@@ -1,0 +1,42 @@
+import 'package:flutter/material.dart';
+import 'package:pizza_app/widget/pizza_card.dart';
+
+class AllPizzasScreen extends StatelessWidget {
+  final List<Map<String, dynamic>> pizzas;
+  final String categoryTitle;
+
+  const AllPizzasScreen(
+      {super.key, required this.pizzas, required this.categoryTitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.red,
+        title: Text(categoryTitle, style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        iconTheme: IconThemeData(
+          color: Colors.white,
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16.0,
+              mainAxisSpacing: 20.0,
+              childAspectRatio: 0.8),
+          itemCount: pizzas.length,
+          itemBuilder: (context, index) {
+            return PizzaCard(
+              pizza: pizzas[index],
+              context: context,
+              category: categoryTitle,
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
